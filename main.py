@@ -1,8 +1,8 @@
 import numpy as np
-import pandas as pd
 import cv2
-import matplotlib.pyplot as plt
 import os
+from keras import layers
+from keras.models import Model
 
 valid_characters = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -38,12 +38,6 @@ X_test, y_test = X[970:], y[:, 970:]
 img_shape = X[0].shape
 
 
-from keras import layers
-from keras.models import Model
-from keras.models import load_model
-from keras import callbacks
-
-
 def create_model():
     img = layers.Input(shape=img_shape)  # Get image as an input and process it through some Convs
     conv1 = layers.Conv2D(16, (3, 3), padding='same', activation='relu')(img)
@@ -51,11 +45,13 @@ def create_model():
     conv2 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp1)
     mp2 = layers.MaxPooling2D(padding='same')(conv2)  # 50x13
     conv3 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp2)
-    bn = layers.BatchNormalization()(conv3)
-    mp3 = layers.MaxPooling2D(padding='same')(bn)  # 25x7
+    mp3 = layers.MaxPooling2D(padding='same')(conv3)  # 25x7
+    conv4 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp3)
+    bn = layers.BatchNormalization()(conv4)
+    mp4 = layers.MaxPooling2D(padding='same')(bn)
 
     # Get flattened vector and make 5 branches from it. Each branch will predict one letter
-    flat = layers.Flatten()(mp3)
+    flat = layers.Flatten()(mp4)
     outs = []
     for _ in range(5):
         dens1 = layers.Dense(64, activation='relu')(flat)
@@ -101,7 +97,14 @@ print('Test Loss and accuracy:', score)
 
 # Check model on some samples
 model.evaluate(X_test, [y_test[0], y_test[1], y_test[2], y_test[3], y_test[4]])
-print(predict('input/2en7g.png'))
 print(predict('input/3mxdn.png'))
-print(predict('input/gecmf.png'))
-print(predict('input/8n5p3.png'))
+print(predict('input/4gb3f.png'))
+print(predict('input/5expp.png'))
+print(predict('input/cgcgb.png'))
+print(predict('input/geyn5.jpg'))
+print(predict('input/7dyww.png'))
+print(predict('input/bwmee.png'))
+print(predict('input/m6n4x.png'))
+print(predict('input/ng46m.png'))
+print(predict('input/p5nce.png'))
+model.save('trained_model')
