@@ -1,18 +1,21 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.functional as F
 
-# neural network (do research into this for OCR)
 class Network(nn.Module):
-    def __init__(self, in_channels: int = 4):
+    def __init__(self, height: int = 28, width: int = 28):
         super(Network, self).__init__()
-        self.p = lambda x: (x[0] // 2, x[1] //2)
         self.main = nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=(3, 3), padding=self.p((3, 3))),
+            nn.Conv2d(1, 32, kernel_size=(3, 3), padding=(1, 1)),
             nn.ReLU(),
-            nn.MaxPool2d((2, 2), padding=self.p((2, 2))),
-            nn.Conv2d(16, 32, kernel_size=(3, 3), padding=self.p((3, 3))),
+            nn.MaxPool2d(32),
+            nn.Conv2d(32, 1, kernel_size=(3, 3), padding=(1, 1)),
+            nn.Flatten(),
+            nn.Linear(height * width, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 10)
         )
 
-    def forward(self):
-        pass
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.main(x)

@@ -1,34 +1,20 @@
 # deps for data processing
 import os
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import pandas as pd
 
-# explore some data real quick
-img = mpimg.imread("./data/train/2b827.png")
-print(img.shape)
+# init our dataframe
+df = pd.DataFrame()
 
-# get labels in a series
-labels = os.listdir("./data/train")
-labels = [x[:-4] for x in labels]
-labels = pd.Series(labels, name="Labels")
-
-# visual
-# plt.imshow(img)
-# plt.savefig("img.png")
-
-print(labels.head())
+# define the root dir that contains data
+root = "data/train"
 
 # load in all images to a series
-images = os.listdir("./data/train")
-images = [mpimg.imread("./data/train/" + x) for x in images]
-images = pd.Series(images, name="Images")
+images = [os.path.join(root, x) for x in os.listdir(root)]
+df["Images"] = images
 
-print(images.head())
-
-# create a dataframe by concatanating two series
-df = pd.concat([images, labels], axis=1)
-print(df.head())
+# get labels in a series
+labels = [x[:-4] for x in os.listdir(root)]
+df["Labels"] = labels
 
 # output to a processed csv file for later use
-df.to_csv("train.csv")
+df.to_csv("data.csv")
