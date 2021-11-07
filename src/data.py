@@ -1,20 +1,26 @@
-# deps for data processing
 import os
-import pandas as pd
+import string
+import numpy as np
+from matplotlib.image import imread
 
-# init our dataframe
-df = pd.DataFrame()
+ims = [imread("data/train/" + x) for x in os.listdir("data/train/")]
+lbs = [x[:-4] for x in os.listdir("data/train/")]
 
-# define the root dir that contains data
-root = "data/train"
+symbols = string.printable
 
-# load in all images to a series
-images = [os.path.join(root, x) for x in os.listdir(root)]
-df["Images"] = images
+Y = np.zeros((len(lbs), len(symbols)))
 
-# get labels in a series
-labels = [x[:-4] for x in os.listdir(root)]
-df["Labels"] = labels
+# mapping stolen from someone else :)
+for n, name in enumerate(lbs):
+    for ln, letter in enumerate(name):
+        try:
+            Y[n][symbols.index(letter)] = 1
+        except:
+            print(letter, end=" ")
 
-# output to a processed csv file for later use
-df.to_csv("data.csv")
+# big brain mapping
+X = []
+for i in range(len(ims)):
+    X.append(ims[i][:, :, 0])
+X = np.array(X)
+X = np.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1))
