@@ -32,7 +32,7 @@ def predict(filepath):
         capt += valid_characters[l]
     return capt
 
-@app.route("upload/", methods=["POST", "GET"])
+@app.route("/upload", methods=["POST", "GET"])
 def upload_file():
     if (request.method == "POST"):
         if "file" not in request.files:
