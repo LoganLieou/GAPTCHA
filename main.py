@@ -1,110 +1,67 @@
-import numpy as np
-import cv2
 import os
+import cv2
+import numpy as np
+
 from keras import layers
 from keras.models import Model
+from keras.utils.vis_utils import plot_model
 
+dataset_path = 'input/dataset'
 valid_characters = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
 def preprocessing():
-    n_samples = len(os.listdir('input/dataset'))
-    X = np.zeros((n_samples, 50, 200, 1))  # 1070*50*200
-    y = np.zeros((5, n_samples, len(valid_characters)))  # 5*1070*36
+    num_samples = len(os.listdir(dataset_path))
+    images = np.zeros((num_samples, 50, 200, 1))
+    keys = np.zeros((5, num_samples, len(valid_characters)))
 
-    for i, pic in enumerate(os.listdir('input/dataset')):
-        # Read image as grayscale
-        img = cv2.imread(os.path.join('input/dataset', pic), cv2.IMREAD_GRAYSCALE)
-        pic_target = pic[:-4]
-        if len(pic_target) < 6:
-            # Scale and reshape image
-            img = img / 255.0
-            img = np.reshape(img, (50, 200, 1))
-            # Define targets and code them using OneHotEncoding
-            targs = np.zeros((5, len(valid_characters)))
-            for j, l in enumerate(pic_target):
-                ind = valid_characters.find(l)
-                targs[j, ind] = 1
-            X[i] = img
-            y[:, i] = targs
-
-    # Return final data
-    return X, y
-
-
-X, y = preprocessing()
-X_train, y_train = X[:970], y[:, :970]
-X_test, y_test = X[970:], y[:, 970:]
-img_shape = X[0].shape
+    for i, img_path in enumerate(os.listdir(dataset_path)):
+        img = cv2.imread(os.path.join(dataset_path, img_path), cv2.IMREAD_GRAYSCALE)
+        img = img / 255.0
+        img = np.reshape(img, (50, 200, 1))
+        targs = np.zeros((5, len(valid_characters)))
+        for j, char in enumerate(img_path[:5]):
+            index = valid_characters.find(char)
+            targs[j, index] = 1
+        images[i] = img
+        keys[:, i] = targs
+    return images, keys
 
 
 def create_model():
-    img = layers.Input(shape=img_shape)  # Get image as an input and process it through some Convs
-    conv1 = layers.Conv2D(16, (3, 3), padding='same', activation='relu')(img)
-    mp1 = layers.MaxPooling2D(padding='same')(conv1)  # 100x25
+    input_img = layers.Input(shape=img_shape)
+    conv1 = layers.Conv2D(16, (3, 3), padding='same', activation='relu')(input_img)
+    mp1 = layers.MaxPooling2D(padding='same')(conv1)
     conv2 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp1)
-    mp2 = layers.MaxPooling2D(padding='same')(conv2)  # 50x13
+    mp2 = layers.MaxPooling2D(padding='same')(conv2)
     conv3 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp2)
-    mp3 = layers.MaxPooling2D(padding='same')(conv3)  # 25x7
+    mp3 = layers.MaxPooling2D(padding='same')(conv3)
     conv4 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp3)
     bn = layers.BatchNormalization()(conv4)
     mp4 = layers.MaxPooling2D(padding='same')(bn)
 
-    # Get flattened vector and make 5 branches from it. Each branch will predict one letter
     flat = layers.Flatten()(mp4)
-    outs = []
+    outputs = []
     for _ in range(5):
-        dens1 = layers.Dense(64, activation='relu')(flat)
-        drop = layers.Dropout(0.5)(dens1)
-        res = layers.Dense(len(valid_characters), activation='sigmoid')(drop)
+        dense = layers.Dense(64, activation='relu')(flat)
+        dropout = layers.Dropout(0.5)(dense)
+        result = layers.Dense(len(valid_characters), activation='sigmoid')(dropout)
+        outputs.append(result)
 
-        outs.append(res)
-
-    # Compile model and return it
-    model = Model(img, outs)
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
+    model = Model(input_img, outputs)
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
 
-model=create_model()
+x, y = preprocessing()
+img_shape = x[0].shape
+
+model = create_model()
 model.summary()
+plot_model(model, to_file='model_plot.png', show_shapes=False, show_layer_names=False)
 
-hist = model.fit(X_train, [y_train[0], y_train[1], y_train[2], y_train[3], y_train[4]], batch_size=32, epochs=30,verbose=1, validation_split=0.2)
+model.fit(x, [y[0], y[1], y[2], y[3], y[4]], batch_size=32, epochs=30, verbose=1, validation_split=.2)
 
-
-# Define function to predict captcha
-def predict(filepath):
-    img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-    if img is not None:
-        img = img / 255.0
-    else:
-        print("Not detected");
-    res = np.array(model.predict(img[np.newaxis, :, :, np.newaxis]))
-    ans = np.reshape(res, (5, 36))
-    l_ind = []
-    probs = []
-    for a in ans:
-        l_ind.append(np.argmax(a))
-        #probs.append(np.max(a))
-
-    capt = ''
-    for l in l_ind:
-        capt += valid_characters[l]
-    return capt#, sum(probs) / 5
-
-score= model.evaluate(X_test,[y_test[0], y_test[1], y_test[2], y_test[3], y_test[4]],verbose=1)
+score= model.evaluate(x,[y[0], y[1], y[2], y[3], y[4]],verbose=1)
 print('Test Loss and accuracy:', score)
-
-# Check model on some samples
-model.evaluate(X_test, [y_test[0], y_test[1], y_test[2], y_test[3], y_test[4]])
-print(predict('input/3mxdn.png'))
-print(predict('input/4gb3f.png'))
-print(predict('input/5expp.png'))
-print(predict('input/cgcgb.png'))
-print(predict('input/geyn5.jpg'))
-print(predict('input/7dyww.png'))
-print(predict('input/bwmee.png'))
-print(predict('input/m6n4x.png'))
-print(predict('input/ng46m.png'))
-print(predict('input/p5nce.png'))
 model.save('trained_model')
