@@ -1,0 +1,102 @@
+\documentclass[11pt]{article}
+\usepackage{cite}
+\usepackage[a4paper, total={6in, 8in}]{geometry}
+\title{GAPTCHA}
+\author{Logan Lieou}
+\date{\today}
+
+\begin{document}
+% title page
+\maketitle{}
+\newpage
+
+\begin{abstract}
+   Over the years computer vision has become more and more complex over time, and the ability for companies and websites to prevent botting online has become a more difficult issue. The Completely Automated Public Turing Test to Tell Computers and Humans Apart (CAPTCHA) test was originally invented to overcome this issue but as time goes on it becomes inc. more difficult to prevent bots from bypassing these tests, in this project we attempt to show how one may go about bypassing the CAPTCHA test using AI.
+\end{abstract}
+
+\section{Data}
+For this project we used data from a publiclly avalible set of CAPTCHA images on kaggle. Each image is $200\times{}50$ with 4 channels, I assume RGB + some sort of mask for CAPTCHA, this is easily fixed with some preprocessing though, mapping $200\times{}50\times{}4$ into an image that is $200\times{}50\times{}1$. A big issue we face with the overall program is the preprocessing and pipelining of data from raw images to information that we can handle with our model and process in order to get adaquate predicitions. Mapping information from string to a tensor is difficult and there are various approches one such approach is from here \cite{a2019}
+
+\begin{verbatim}
+   images = sorted(list(map(str, list(data_dir.glob("*.png")))))
+   labels = [img.split(os.path.sep)[-1].split(".png")[0] for img in images]
+   characters = set(char for label in labels for char in label)
+\end{verbatim}
+first the author creates a list of images and labels, labels are extracted from image titles.
+\begin{verbatim}
+   char_to_num = layers.StringLookup(
+    vocabulary=list(characters), mask_token=None
+   )
+   num_to_char = layers.StringLookup(
+    vocabulary=char_to_num.get_vocabulary(), 
+    mask_token=None, invert=True
+   )
+\end{verbatim}
+then they write a method to map from characters to tensors and tensors to characters, this this is very abstracted and very declarative but the solution is overall better than the the hard code one hot tensor that we ended up implementing this, would hypothetically scale across different types of image information and data and allow for perhaps more flexible models.
+\subsection{One Hot Encoding}
+One hot encoding is done by creating a matrix comparing across all classes giving 1 if true, 0 if false, in this case it's 1 if a letter is valued, and 0 if it's not. On the model output you would threshold these values in order to get 1 or 0 predictions.
+\begin{verbatim}
+   ims = [imread("data/train/" + x) for x in os.listdir("data/train/")]
+   lbs = [x[:-4] for x in os.listdir("data/train/")]
+\end{verbatim}
+I start off the same way as in \cite{a2019} with a slightly different aproach and I think my approach is technically slower because they are using collections. I get all labels, and image paths. Next I write the forward mapping:
+\begin{verbatim}
+   def forward_map(word):
+    one_hot_word = np.zeros((len(word), len(symbols)))
+    for n, letter in enumerate(word):
+        one_hot_word[n][symbols.index(letter)] = 1
+    return one_hot_word
+\end{verbatim}
+this maps a word to a one hot tensor of size $(5, 100)$ both aproaches are hard code restricted to a set of characters, and word length, this is really unfortunate because this has the tendency to hyper fit our model, there's ways around this by writing a more general data pipeline or using bounding boxes to individually classify characters, which may have been a better aproach overall. The reverse mapping:
+\begin{verbatim}
+   def inverse_map(one_hot_word):
+    word = ""
+    for i in range(len(one_hot_word)):
+        for j in range(len(one_hot_word[0])):
+            if one_hot_word[i][j] >= 1.:
+                word += symbols[j]
+    return word
+\end{verbatim}
+Takes in a a one hot tensor and outputs a word.
+
+\section{Models}
+\subsection{Intutive Explaination}
+In this paper I cover my particular model the CRNN architecutre whatever you want to call it as that's what the architecutre most resembles. The model consists of 3 parts the convolutional, recurrent and transcription layer. When you pass an image to the model the convolutional neural network extracts and learns feature mappings, then you pass these the the RNN, in this case and in the case of my model you use a bidirectional LSTM in order to predict on the variable length label sequence LSTMs are very good at retaining and disregarding previous information due to it's residual nature. \cite{feng2019} 
+\subsection{Mathematical Explaination}
+\subsection{Code Explaination}
+
+\section{Loss}
+We used categorical cross entropy as well as CTC loss.
+\subsection{Categorical Cross Entropy}
+Categorical cross entropy is a common loss function when dealing with many catgegories of data to classify we get the loss
+$$
+CE = -\Sigma_{x\in{}X} f(x)log(g(x))
+$$
+to minimize. Cross entropy measures the the average number of bits from distrobution $g$ reletive to a given distrobution $f$ for the same underlying value $x$ \cite{murphy2012}
+
+\subsection{Connectionist Temporal Classification}
+CTC was first proposed in \cite{graves2006}
+
+\section{Training}
+A simple training function may look something like this:
+\begin{verbatim}
+   for epoch in range(10):
+      for X, y in train_dataset:
+         optim.zero_grad()
+         preds = model(X)
+         loss = loss_fn(preds, y)
+         optim.step()
+\end{verbatim}
+where you take feature inputs and validate these against labels the adjust the model accordingly using your optimizer. The interesting part here is of course the forward and inverse mappings of the data, y must be encoded with the forward mapping then y and model(X) can be compared.
+
+\section{Problems}
+Our models had issues with overfitting, this is due to how preprocessing works as covered before, in addition this also somewhat has to do with the way that tensorflow works.
+\subsection{Preprocessing}
+Preprocssing hard fit the model to only predict a certian length of characters, as well as in some cases only a certian subset of characters, as well although this is very good for our results it's not very good for generalizing the model, you could potentially improve this by having a dataset that contains all characters.
+\subsection{Tensorflow}
+The problem with tensorflow in this case is the fact that tensorflow expects you pass an explicitly sized tensor into the first layer of the model, this forces the programmer to code around the input tensor in a particular way that you wouldn't otherwise have to for example in the case of torch nn.Conv2d this could be seen as a good thing as the program is declarative but it makes is exceptionally difficult to work with if you're trying to minipulate tensors between layers as I was in the case of my model.
+\section{Conclusion}
+
+\bibliography{paper}{}
+\bibliographystyle{ieeetr}
+\end{document}

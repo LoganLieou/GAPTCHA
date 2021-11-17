@@ -1,0 +1,5 @@
+[0] Config.pm:311> INFO - This is Biber 2.16
+[0] Config.pm:314> INFO - Logfile is 'paper.blg'
+[62] biber-darwin:340> INFO - === Tue Nov 16, 2021, 23:51:17
+[196] Utils.pm:411> ERROR - Cannot find 'paper.bcf'!
+[196] Biber.pm:132> INFO - ERRORS: 1
