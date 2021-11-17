@@ -3,24 +3,26 @@ from pathlib import Path
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
+import matplotlib.pyplot as plt
 from tensorflow import keras
-from matplotlib.image import imread
 
+# load in our pre trained model
 model = tf.keras.models.load_model("./ocr_model")
 model.summary()
 
-# hyper params
 batch_size = 20
 img_width = 200
 img_height = 50
 downsample_factor = 4
 
-# this is absolutely hardcoded to fit to our dataset
+# this is absolutely hardcoded to fit to our dataset don't worry about it
+# this is super good for the demo lol
 data_dir = Path("./data/")
 images = sorted(list(map(str, list(data_dir.glob("*.png")))))
 labels = [img.split(os.path.sep)[-1].split(".png")[0] for img in images]
 symbols = set(char for label in labels for char in label)
 
+# max length of any given CAPTCHA image
 max_length = max([len(label) for label in labels])
 
 # Mapping symbols to integers
@@ -32,26 +34,6 @@ char_to_num = layers.StringLookup(
 num_to_char = layers.StringLookup(
     vocabulary=char_to_num.get_vocabulary(), mask_token=None, invert=True
 )
-
-
-def split_data(images, labels, train_size=0.9, shuffle=True):
-    # 1. Get the total size of the dataset
-    size = len(images)
-    # 2. Make an indices array and shuffle it, if required
-    indices = np.arange(size)
-    if shuffle:
-        np.random.shuffle(indices)
-    # 3. Get the size of training samples
-    train_samples = int(size * train_size)
-    # 4. Split data into training and validation sets
-    x_train, y_train = images[indices[:train_samples]], labels[indices[:train_samples]]
-    x_valid, y_valid = images[indices[train_samples:]], labels[indices[train_samples:]]
-    return x_train, x_valid, y_train, y_valid
-
-
-# Splitting data into training and validation sets
-x_train, x_valid, y_train, y_valid = split_data(np.array(images), np.array(labels))
-
 
 def encode_single_sample(img_path, label):
     # 1. Read image
@@ -70,28 +52,16 @@ def encode_single_sample(img_path, label):
     # 7. Return a dict as our model is expecting two inputs
     return {"image": img, "label": label}
 
-train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-train_dataset = (
-    train_dataset.map(
+x = tf.data.Dataset.from_tensor_slices((["./data/226md.png"], ["226md"]))
+
+x = (
+    x.map(
         encode_single_sample, num_parallel_calls=tf.data.AUTOTUNE
     )
-    .batch(batch_size)
+    .batch(1)
     .prefetch(buffer_size=tf.data.AUTOTUNE)
 )
-
-validation_dataset = tf.data.Dataset.from_tensor_slices((x_valid, y_valid))
-
-validation_dataset = (
-    validation_dataset.map(
-        encode_single_sample, num_parallel_calls=tf.data.AUTOTUNE
-    )
-    .batch(batch_size)
-    .prefetch(buffer_size=tf.data.AUTOTUNE)
-)
-
-x = validation_dataset.take(1)
-
-print(model.predict(x))
+print(x)
 
 def decode_batch_predictions(pred):
     input_len = np.ones(pred.shape[0]) * pred.shape[1]
@@ -107,3 +77,9 @@ def decode_batch_predictions(pred):
     return output_text
 
 print(decode_batch_predictions(model.predict(x)))
+
+for batch in x.take(1):
+    img = (batch["image"][0, :, :, 0] * 255).numpy().astype(np.uint8)
+    img = img.T
+    plt.imshow(img)
+    plt.savefig("out.png")

@@ -3,7 +3,6 @@ from pathlib import Path
 from tensorflow.keras import layers
 from tensorflow import keras
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import numpy as np
 
 # this is absolutely hardcoded to fit to our dataset
