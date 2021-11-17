@@ -37,8 +37,8 @@ def create_model():
     conv3 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp2)
     mp3 = layers.MaxPooling2D(padding='same')(conv3)
     conv4 = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(mp3)
-    bn = layers.BatchNormalization()(conv4)
-    mp4 = layers.MaxPooling2D(padding='same')(bn)
+    bn1 = layers.BatchNormalization()(conv4)
+    mp4 = layers.MaxPooling2D(padding='same')(bn1)
 
     flat = layers.Flatten()(mp4)
     outputs = []
